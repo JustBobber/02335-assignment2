@@ -26,43 +26,42 @@ typedef char MsgKind;
 #define AQ_NO_ROOM     -4   // No room for message
 #define AQ_NOT_IMPL  -100   // Operation is not implemented
 
-typedef void * AlarmQueue;  // Opaque type 
+typedef void *AlarmQueue; // Opaque type
 
 /**
  * @name    aq_create
  * @brief   Creates and initializes an alarm queue
  * @retval  Handle to alarm queue if created, otherwise NULL
  */
-AlarmQueue aq_create( );
+AlarmQueue aq_create();
 
 /**
  * @name    aq_send
  * @brief   Sends message pointed to by msg with kind indicated.
  * @retval  0 if message was successfully sent, otherwise an error code.
  */
-int aq_send( AlarmQueue aq, void * msg, MsgKind k);
+int aq_send(AlarmQueue aq, void *msg, MsgKind k);
 
 /**
  * @name    aq_recv
  * @brief   Receives a message setting the supplied msg pointer. Blocks until message is ready.
  * @retval  Kind of message if message was received successfully, otherwise an error code.
  */
-int aq_recv( AlarmQueue aq, void * * msg);
+int aq_recv(AlarmQueue aq, void * *msg);
 
 /**
  * @name    aq_size
  * @brief   Give size of alarm queue in terms of messages
  * @retval  Number of messages (of both kinds) currently held by the queue
  */
-int aq_size( AlarmQueue aq);
+int aq_size(AlarmQueue aq);
 
 /**
  * @name    aq_alarms
  * @brief   Give size of alarm messages
  * @retval  Number of alarm messages currently held by the queue
  */
-int aq_alarms( AlarmQueue aq);
+int aq_alarms(AlarmQueue aq);
 
 
 #endif /* LIBAQ_H_INCLUDED */
-

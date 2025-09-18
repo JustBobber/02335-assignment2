@@ -17,12 +17,14 @@
  */
 
 int put_normal(AlarmQueue q, int val);
+
 int put_alarm(AlarmQueue q, int val);
+
 int get(AlarmQueue q);
+
 int print_sizes(AlarmQueue q);
 
 /* Sleep in milliseconds */
-void  msleep(int ms);
+void msleep(int ms);
 
 #endif /* AUX_H_INCLUDED */
-
