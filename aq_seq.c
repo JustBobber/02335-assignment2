@@ -24,6 +24,13 @@ AlarmQueue aq_create() {
 }
 
 int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
+    if (k == AQ_ALARM) {
+        Queue* val = aq; 
+        
+        if (val->alarm == NULL) {
+            // Do something
+        }
+    }
     return AQ_NOT_IMPL;
 }
 
