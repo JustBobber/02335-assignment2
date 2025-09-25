@@ -47,12 +47,14 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
         NormalQueueMessage *new_msg = malloc(sizeof(NormalQueueMessage));
         if (queue->q_msg == NULL) {
             queue->q_msg = new_msg;
+            new_msg->val = msg; // add msg to queue
         } else {
             NormalQueueMessage *current = queue->q_msg;
             while (current->next != NULL) {
                 current = current->next;
             }
             current->next = new_msg;
+            new_msg->val = msg; // add msg to queue
         }
         return 0;
     }
@@ -78,11 +80,12 @@ int aq_recv(AlarmQueue aq, void * *msg) {
         return AQ_ALARM;
     }
 
-    // this does not work ¯\_( ͡° ͜ʖ ͡°)_/¯
     if (queue->q_msg != NULL) {
         *msg = queue->q_msg->val;
         if (queue->q_msg->next != NULL) {
             queue->q_msg = queue->q_msg->next;
+        } else {
+            queue->q_msg = NULL; // For removing last element of queue
         }
         return AQ_NORMAL;
     }
