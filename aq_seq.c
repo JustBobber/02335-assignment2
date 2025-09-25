@@ -6,9 +6,21 @@
  */
 
 #include "aq.h"
+#include "stdlib.h"
+
+typedef struct {
+    void *val;
+    void *next;
+} NormalQueueMessage;
+
+typedef struct {
+    void *alarm;
+    NormalQueueMessage *q_msg;
+} Queue;
 
 AlarmQueue aq_create() {
-    return NULL;
+    Queue *q = malloc(sizeof(Queue));
+    return q;
 }
 
 int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
