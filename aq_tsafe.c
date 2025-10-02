@@ -6,7 +6,7 @@
  */
 
 #include "aq.h"
-
+#include <pthread.h>
 #include "aq.h"
 #include "stdlib.h"
 
@@ -18,6 +18,8 @@ typedef struct {
 typedef struct {
     void *alarm;
     NormalQueueMessage *q_msg;
+    pthread_mutex_t lock;
+    pthread_cond_t sendCondition, recvCondition;
 } Queue;
 
 AlarmQueue aq_create() {
