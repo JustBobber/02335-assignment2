@@ -44,10 +44,10 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
     if (k == AQ_ALARM) {
         pthread_mutex_lock(&(queue->lock));
         if (queue->alarm != NULL) {
-            pthread_cond_wait(&(queue->sendCondition), &(queue->lock));
+            pthread_cond_wait(&(queue->recvCondition), &(queue->lock));
         }
         queue->alarm = msg;
-        pthread_cond_signal(&(queue->recvCondition));
+        pthread_cond_signal(&(queue->sendCondition));
         pthread_mutex_unlock(&(queue->lock));
         return 0;
     }
@@ -66,6 +66,7 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
             current->next = new_msg;
             new_msg->val = msg; // add msg to queue
         }
+        pthread_cond_signal(&(queue->sendCondition));
         return 0;
     }
 
@@ -84,14 +85,15 @@ int aq_recv(AlarmQueue aq, void * *msg) {
     Queue *queue = aq;
 
     pthread_mutex_lock(&(queue->lock));
-    if (aq_size == 0) {
-        pthread_cond_wait(&(queue->recvCondition), &(queue->lock));
+    if (aq_size(aq) == 0) {
+        pthread_cond_wait(&(queue->sendCondition), &(queue->lock));
     }
     
     // if there is alarm
     if (aq_alarms(queue) == 1) {
         *msg = queue->alarm;
         queue->alarm = NULL;
+        pthread_cond_signal(&(queue->recvCondition));
         return AQ_ALARM;
     }
     
@@ -105,7 +107,6 @@ int aq_recv(AlarmQueue aq, void * *msg) {
         return AQ_NORMAL;
     }
     
-    pthread_cond_signal(&(queue->sendCondition));
     pthread_mutex_unlock(&(queue->lock));
 }
 
