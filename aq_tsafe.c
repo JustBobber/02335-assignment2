@@ -7,22 +7,116 @@
 
 #include "aq.h"
 
+#include "aq.h"
+#include "stdlib.h"
+
+typedef struct {
+    void *val;
+    void *next;
+} NormalQueueMessage;
+
+typedef struct {
+    void *alarm;
+    NormalQueueMessage *q_msg;
+} Queue;
+
 AlarmQueue aq_create() {
-    return NULL;
+    Queue *q = malloc(sizeof(Queue));
+    return q;
 }
 
 int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
+    if (aq == NULL) {
+        return AQ_UNINIT;
+    }
+    if (msg == NULL) {
+        return AQ_NULL_MSG;
+    }
+
+    Queue* queue = aq;
+
+    // alarm message
+    if (k == AQ_ALARM) {
+        if (queue->alarm != NULL) {
+            return AQ_NO_ROOM;
+        }
+        queue->alarm = msg;
+        return 0;
+    }
+
+    // normal message
+    if (k == AQ_NORMAL) {
+        NormalQueueMessage *new_msg = malloc(sizeof(NormalQueueMessage));
+        if (queue->q_msg == NULL) {
+            queue->q_msg = new_msg;
+            new_msg->val = msg; // add msg to queue
+        } else {
+            NormalQueueMessage *current = queue->q_msg;
+            while (current->next != NULL) {
+                current = current->next;
+            }
+            current->next = new_msg;
+            new_msg->val = msg; // add msg to queue
+        }
+        return 0;
+    }
+
+    // unknown message kind
     return AQ_NOT_IMPL;
 }
 
 int aq_recv(AlarmQueue aq, void * *msg) {
-    return AQ_NOT_IMPL;
+    if (aq == NULL) {
+        return AQ_UNINIT;
+    }
+    if (msg == NULL) {
+        return AQ_NULL_MSG;
+    }
+
+    Queue *queue = aq;
+
+    // if there is alarm
+    if (aq_alarms(queue) == 1) {
+        *msg = queue->alarm;
+        queue->alarm = NULL;
+        return AQ_ALARM;
+    }
+
+    if (queue->q_msg != NULL) {
+        *msg = queue->q_msg->val;
+        if (queue->q_msg->next != NULL) {
+            queue->q_msg = queue->q_msg->next;
+        } else {
+            queue->q_msg = NULL; // For removing last element of queue
+        }
+        return AQ_NORMAL;
+    }
+
+    return AQ_NO_MSG;
 }
 
 int aq_size(AlarmQueue aq) {
-    return 0;
+    if (aq == NULL) {
+        return AQ_UNINIT;
+    }
+    Queue *queue = aq;
+    int size = 0;
+    
+    NormalQueueMessage *current = queue->q_msg;
+    if (current == NULL) {
+        return size + aq_alarms(queue);
+    }
+    do {
+        size++;
+        current = current->next;
+    } while (current != NULL);
+    return size + aq_alarms(queue);
 }
 
 int aq_alarms(AlarmQueue aq) {
-    return 0;
+    if (aq == NULL) {
+        return AQ_UNINIT;
+    }
+    Queue *queue = aq;
+    return queue->alarm != NULL ? 1 : 0;
 }
