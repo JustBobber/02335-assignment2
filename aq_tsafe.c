@@ -24,6 +24,9 @@ typedef struct {
 
 AlarmQueue aq_create() {
     Queue *q = malloc(sizeof(Queue));
+    pthread_mutex_init(&(q->lock), 0);
+    pthread_cond_init(&(q->sendCondition), 0);
+    pthread_cond_init(&(q->recvCondition), 0);
     return q;
 }
 
@@ -39,10 +42,13 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 
     // alarm message
     if (k == AQ_ALARM) {
+        pthread_mutex_lock(&(queue->lock));
         if (queue->alarm != NULL) {
-            return AQ_NO_ROOM;
+            pthread_cond_wait(&(queue->sendCondition), &(queue->lock));
         }
         queue->alarm = msg;
+        pthread_cond_signal(&(queue->recvCondition));
+        pthread_mutex_unlock(&(queue->lock));
         return 0;
     }
 
@@ -77,13 +83,18 @@ int aq_recv(AlarmQueue aq, void * *msg) {
 
     Queue *queue = aq;
 
+    pthread_mutex_lock(&(queue->lock));
+    if (aq_size == 0) {
+        pthread_cond_wait(&(queue->recvCondition), &(queue->lock));
+    }
+    
     // if there is alarm
     if (aq_alarms(queue) == 1) {
         *msg = queue->alarm;
         queue->alarm = NULL;
         return AQ_ALARM;
     }
-
+    
     if (queue->q_msg != NULL) {
         *msg = queue->q_msg->val;
         if (queue->q_msg->next != NULL) {
@@ -93,8 +104,9 @@ int aq_recv(AlarmQueue aq, void * *msg) {
         }
         return AQ_NORMAL;
     }
-
-    return AQ_NO_MSG;
+    
+    pthread_cond_signal(&(queue->sendCondition));
+    pthread_mutex_unlock(&(queue->lock));
 }
 
 int aq_size(AlarmQueue aq) {
