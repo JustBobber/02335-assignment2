@@ -85,6 +85,7 @@ int aq_recv(AlarmQueue aq, void * *msg) {
     Queue *queue = aq;
 
     pthread_mutex_lock(&(queue->lock));
+
     if (aq_size(aq) == 0) {
         pthread_cond_wait(&(queue->sendCondition), &(queue->lock));
     }
@@ -94,6 +95,7 @@ int aq_recv(AlarmQueue aq, void * *msg) {
         *msg = queue->alarm;
         queue->alarm = NULL;
         pthread_cond_signal(&(queue->recvCondition));
+        pthread_mutex_unlock(&(queue->lock));
         return AQ_ALARM;
     }
     
@@ -104,10 +106,12 @@ int aq_recv(AlarmQueue aq, void * *msg) {
         } else {
             queue->q_msg = NULL; // For removing last element of queue
         }
+        pthread_mutex_unlock(&(queue->lock));
         return AQ_NORMAL;
     }
     
     pthread_mutex_unlock(&(queue->lock));
+    return AQ_NO_MSG;
 }
 
 int aq_size(AlarmQueue aq) {
