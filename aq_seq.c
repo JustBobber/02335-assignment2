@@ -5,6 +5,8 @@
  * @brief  Alarm queue skeleton implementation
  */
 
+#include <string.h>
+
 #include "aq.h"
 #include "stdlib.h"
 
@@ -24,12 +26,8 @@ AlarmQueue aq_create() {
 }
 
 int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
-    if (aq == NULL) {
-        return AQ_UNINIT;
-    }
-    if (msg == NULL) {
-        return AQ_NULL_MSG;
-    }
+    if (aq == NULL) return AQ_UNINIT;
+    if (msg == NULL) return AQ_NULL_MSG;
 
     Queue* queue = aq;
 
@@ -64,11 +62,11 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 }
 
 int aq_recv(AlarmQueue aq, void * *msg) {
-    if (aq == NULL) {
-        return AQ_UNINIT;
-    }
-    if (msg == NULL) {
-        return AQ_NULL_MSG;
+    if (aq == NULL) return AQ_UNINIT;
+    if (msg == NULL) return AQ_NULL_MSG;
+    if (*msg != NULL) {
+        free(*msg);
+        *msg = NULL;
     }
 
     Queue *queue = aq;
@@ -83,8 +81,11 @@ int aq_recv(AlarmQueue aq, void * *msg) {
     if (queue->q_msg != NULL) {
         *msg = queue->q_msg->val;
         if (queue->q_msg->next != NULL) {
-            queue->q_msg = queue->q_msg->next;
+            NormalQueueMessage *next = queue->q_msg->next;
+            free(queue->q_msg);
+            queue->q_msg = next;
         } else {
+            free(queue->q_msg);
             queue->q_msg = NULL; // For removing last element of queue
         }
         return AQ_NORMAL;
