@@ -13,6 +13,7 @@ void *producer(void *arg) {
     put_normal(q, 1);
     put_normal(q, 2);
     put_normal(q, 3);
+    msleep(100);
     put_normal(q, 4);
     put_normal(q, 5);
     put_normal(q, 6);
