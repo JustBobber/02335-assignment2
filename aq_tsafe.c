@@ -38,10 +38,10 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
     if (msg == NULL) return AQ_NULL_MSG;
 
     Queue* queue = aq;
+    pthread_mutex_lock(&(queue->lock)); // aquire lock no matter the message kind
 
     // alarm message
     if (k == AQ_ALARM) {
-        pthread_mutex_lock(&(queue->lock));
         if (queue->alarm != NULL) {
             pthread_cond_wait(&(queue->recvCondition), &(queue->lock));
         }
@@ -67,10 +67,12 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
             new_msg->val = msg; // add msg to queue
         }
         pthread_cond_signal(&(queue->sendCondition));
+        pthread_mutex_unlock(&(queue->lock));
         return 0;
     }
 
     // unknown message kind
+    pthread_mutex_unlock(&(queue->lock));
     return AQ_NOT_IMPL;
 }
 
