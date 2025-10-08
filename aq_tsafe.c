@@ -13,13 +13,13 @@
 #define SEND_SUCCESS 0
 
 typedef struct {
-    void *val;
+    void *msg;
     void *next;
 } NormalQueueMessage;
 
 typedef struct {
     void *alarm;
-    NormalQueueMessage *q_msg;
+    NormalQueueMessage *queue_msg;
     pthread_mutex_t lock;
     pthread_cond_t sendCondition, recvCondition;
 } Queue;
@@ -57,14 +57,14 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
         // initialize new message
         NormalQueueMessage *new_msg = malloc(sizeof(NormalQueueMessage));
         new_msg->next = NULL;
-        new_msg->val = msg;
+        new_msg->msg = msg;
 
-        if (queue->q_msg == NULL) {
+        if (queue->queue_msg == NULL) {
             // if message list head is null, set the new message as the head
-            queue->q_msg = new_msg;
+            queue->queue_msg = new_msg;
         } else {
             // ... otherwise find the tail and append the new message
-            NormalQueueMessage *current = queue->q_msg;
+            NormalQueueMessage *current = queue->queue_msg;
             while (current->next != NULL) {
                 current = current->next;
             }
@@ -106,16 +106,16 @@ int aq_recv(AlarmQueue aq, void * *msg) {
         return AQ_ALARM;
     }
     
-    if (queue->q_msg != NULL) {
-        *msg = queue->q_msg->val;
-        if (queue->q_msg->next != NULL) {
-            NormalQueueMessage *next = queue->q_msg->next;
-            free(queue->q_msg);
-            queue->q_msg = next;
+    if (queue->queue_msg != NULL) {
+        *msg = queue->queue_msg->msg;
+        if (queue->queue_msg->next != NULL) {
+            NormalQueueMessage *next = queue->queue_msg->next;
+            free(queue->queue_msg);
+            queue->queue_msg = next;
             
         } else {
-            free(queue->q_msg);
-            queue->q_msg = NULL; // For removing last element of queue
+            free(queue->queue_msg);
+            queue->queue_msg = NULL; // For removing last element of queue
         }
         pthread_mutex_unlock(&(queue->lock));
         return AQ_NORMAL;
@@ -132,7 +132,7 @@ int aq_size(AlarmQueue aq) {
     Queue *queue = aq;
     int size = 0;
     
-    NormalQueueMessage *current = queue->q_msg;
+    NormalQueueMessage *current = queue->queue_msg;
     if (current == NULL) {
         return size + aq_alarms(queue);
     }
