@@ -21,6 +21,7 @@ typedef struct {
     void *alarm;
     NormalQueueMessage *queue_msg;
     pthread_mutex_t lock;
+    // send condition is broadcasted when a message is sent, recv condition is broadcasted when a message is consumed
     pthread_cond_t sendCondition, recvCondition;
 } Queue;
 
@@ -126,6 +127,7 @@ int aq_recv(AlarmQueue aq, void * *msg) {
 }
 
 int aq_size(AlarmQueue aq) {
+    // this is only ever called from aq_recv, which has mutex protection, so this doesn't need mutex handling for itself
     if (aq == NULL) {
         return AQ_UNINIT;
     }
@@ -147,6 +149,7 @@ int aq_alarms(AlarmQueue aq) {
     if (aq == NULL) {
         return AQ_UNINIT;
     }
+    // no mutex needed since we only access the queue once
     Queue *queue = aq;
     return queue->alarm != NULL ? 1 : 0;
 }
