@@ -85,10 +85,6 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 int aq_recv(AlarmQueue aq, void * *msg) {
     if (aq == NULL) return AQ_UNINIT;
     if (msg == NULL) return AQ_NULL_MSG;
-    if (*msg != NULL) {
-        free(*msg);
-        *msg = NULL;
-    }
 
     Queue *queue = aq;
 
@@ -100,28 +96,30 @@ int aq_recv(AlarmQueue aq, void * *msg) {
     
     // if there is alarm
     if (aq_alarms(queue) == 1) {
-        *msg = queue->alarm;
+        *msg = queue->alarm; // store alarm in result pointer
         queue->alarm = NULL;
         pthread_cond_broadcast(&(queue->recvCondition)); // signal every thread waiting for recvCondition that a message has been consumed
         pthread_mutex_unlock(&(queue->lock));
         return AQ_ALARM;
     }
     
+    // if there is a normal message
     if (queue->queue_msg != NULL) {
-        *msg = queue->queue_msg->msg;
+        *msg = queue->queue_msg->msg; // store normal message queue head in result pointer
+
         if (queue->queue_msg->next != NULL) {
+            // if there is another message in the normal message queue, move that to be the head of the queue
             NormalQueueMessage *next = queue->queue_msg->next;
-            free(queue->queue_msg);
             queue->queue_msg = next;
-            
         } else {
-            free(queue->queue_msg);
-            queue->queue_msg = NULL; // For removing last element of queue
+            queue->queue_msg = NULL; // ... otherwise remove the last message
         }
+        pthread_cond_broadcast(&(queue->recvCondition)); // signal every thread waiting for recvCondition that a message has been consumed
         pthread_mutex_unlock(&(queue->lock));
         return AQ_NORMAL;
     }
     
+    // no alarms, no normal messages. Release and return err code
     pthread_mutex_unlock(&(queue->lock));
     return AQ_NO_MSG;
 }
