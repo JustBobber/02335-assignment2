@@ -1,0 +1,29 @@
+name: build and test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout repository
+      uses: actions/checkout@v5
+
+    - name: install deps
+      run: sudo apt-get update && sudo apt-get install -y build-essential
+
+    - name: build
+      run: make
+
+    - name: run demo
+      run: ./demo
+
+    - name: run test
+      run: ./test
