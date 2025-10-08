@@ -42,7 +42,7 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 
     // alarm message
     if (k == AQ_ALARM) {
-        if (queue->alarm != NULL) {
+        while (queue->alarm != NULL) {
             pthread_cond_wait(&(queue->recvCondition), &(queue->lock));
         }
         queue->alarm = msg;
@@ -88,7 +88,7 @@ int aq_recv(AlarmQueue aq, void * *msg) {
 
     pthread_mutex_lock(&(queue->lock));
 
-    if (aq_size(aq) == 0) {
+    while (aq_size(aq) == 0) {
         pthread_cond_wait(&(queue->sendCondition), &(queue->lock));
     }
     
