@@ -47,7 +47,7 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
             pthread_cond_wait(&(queue->recvCondition), &(queue->lock));
         }
         queue->alarm = msg; // set alarm in queue
-        pthread_cond_signal(&(queue->sendCondition)); // signal that a message has been sent
+        pthread_cond_broadcast(&(queue->sendCondition)); // signal every thread waiting for sendCondition that a message has been sent
         pthread_mutex_unlock(&(queue->lock)); // release mutex
         return SEND_SUCCESS;
     }
@@ -71,7 +71,7 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
             current->next = new_msg;
         }
 
-        pthread_cond_signal(&(queue->sendCondition)); // signal that a message has been sent
+        pthread_cond_broadcast(&(queue->sendCondition)); // signal every thread waiting for sendCondition that a message has been sent
         pthread_mutex_unlock(&(queue->lock)); // release mutex
         return SEND_SUCCESS;
     }
@@ -101,7 +101,7 @@ int aq_recv(AlarmQueue aq, void * *msg) {
     if (aq_alarms(queue) == 1) {
         *msg = queue->alarm;
         queue->alarm = NULL;
-        pthread_cond_signal(&(queue->recvCondition));
+        pthread_cond_broadcast(&(queue->recvCondition)); // signal every thread waiting for recvCondition that a message has been consumed
         pthread_mutex_unlock(&(queue->lock));
         return AQ_ALARM;
     }
