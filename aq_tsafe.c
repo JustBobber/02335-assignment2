@@ -126,7 +126,6 @@ int aq_recv(AlarmQueue aq, void * *msg) {
 }
 
 int aq_size(AlarmQueue aq) {
-    // this is only ever called from aq_recv, which has mutex protection, so this doesn't need mutex handling for itself
     if (aq == NULL) {
         return AQ_UNINIT;
     }
@@ -158,7 +157,7 @@ int aq_alarms(AlarmQueue aq) {
     if (aq == NULL) {
         return AQ_UNINIT;
     }
-    // no mutex needed since we only access the queue once
+
     Queue *queue = aq;
     pthread_mutex_lock(&(queue->lock));
     int alarm = queue->alarm != NULL ? 1 : 0;
