@@ -90,12 +90,12 @@ int aq_recv(AlarmQueue aq, void * *msg) {
 
     pthread_mutex_lock(&(queue->lock));
 
-    while (aq_size(aq) == 0) {
+    while (queue->alarm == NULL && queue->queue_msg == NULL) {
         pthread_cond_wait(&(queue->sendCondition), &(queue->lock));
     }
     
     // if there is alarm
-    if (aq_alarms(queue) == 1) {
+    if (queue->alarm != NULL) {
         *msg = queue->alarm; // store alarm in result pointer
         queue->alarm = NULL;
         pthread_cond_broadcast(&(queue->recvCondition)); // signal every thread waiting for recvCondition that a message has been consumed
@@ -106,7 +106,7 @@ int aq_recv(AlarmQueue aq, void * *msg) {
     // if there is a normal message
     if (queue->queue_msg != NULL) {
         *msg = queue->queue_msg->msg; // store normal message queue head in result pointer
-
+        NormalQueueMessage *recv_msg = queue->queue_msg; // the received msg that is to be freed after.
         if (queue->queue_msg->next != NULL) {
             // if there is another message in the normal message queue, move that to be the head of the queue
             NormalQueueMessage *next = queue->queue_msg->next;
@@ -114,6 +114,7 @@ int aq_recv(AlarmQueue aq, void * *msg) {
         } else {
             queue->queue_msg = NULL; // ... otherwise remove the last message
         }
+        free(recv_msg); // freeing the received message
         pthread_cond_broadcast(&(queue->recvCondition)); // signal every thread waiting for recvCondition that a message has been consumed
         pthread_mutex_unlock(&(queue->lock));
         return AQ_NORMAL;
@@ -130,17 +131,27 @@ int aq_size(AlarmQueue aq) {
         return AQ_UNINIT;
     }
     Queue *queue = aq;
+
+    pthread_mutex_lock(&(queue->lock));
+
     int size = 0;
-    
+
+    if (queue->alarm != NULL) {
+        size ++;
+    }
+
     NormalQueueMessage *current = queue->queue_msg;
     if (current == NULL) {
-        return size + aq_alarms(queue);
+        pthread_mutex_unlock(&(queue->lock));
+        return size; // + aq_alarms(queue);
     }
     do {
         size++;
         current = current->next;
     } while (current != NULL);
-    return size + aq_alarms(queue);
+
+    pthread_mutex_unlock(&(queue->lock));
+    return size; // + aq_alarms(queue);
 }
 
 int aq_alarms(AlarmQueue aq) {
@@ -149,5 +160,8 @@ int aq_alarms(AlarmQueue aq) {
     }
     // no mutex needed since we only access the queue once
     Queue *queue = aq;
-    return queue->alarm != NULL ? 1 : 0;
+    pthread_mutex_lock(&(queue->lock));
+    int alarm = queue->alarm != NULL ? 1 : 0;
+    pthread_mutex_unlock(&(queue->lock));
+    return alarm;
 }
