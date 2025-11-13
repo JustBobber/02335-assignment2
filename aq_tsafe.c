@@ -97,7 +97,7 @@ int aq_recv(AlarmQueue aq, void **msg) {
         }
 
         // store alarm (which is current) in result pointer and fix linked list if necessary
-        *msg = current;
+        *msg = current->msg;
         if (current->next != NULL && previous != NULL) previous->next = current->next;
 
         queue->size--;
@@ -144,7 +144,6 @@ int aq_alarms(AlarmQueue aq) {
     }
     Queue *queue = (Queue*) aq;
     
-    pthread_mutex_lock(&(queue->lock));
     
     if (queue->head == NULL) return 0;
 
@@ -158,7 +157,6 @@ int aq_alarms(AlarmQueue aq) {
     }
     if (current->kind == AQ_ALARM) alarms++;
     
-    pthread_mutex_unlock(&(queue->lock));
     
     return alarms;
 }
