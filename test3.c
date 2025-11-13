@@ -40,7 +40,7 @@ void *receive_message(void *arg) {
 }
 
 int main() {
-    AlarmQueue *q; = aq_create();
+    AlarmQueue *q = aq_create();
     pthread_t t1, t2, t3, t4;
 
     pthread_create(&t1, NULL, send_alarm, q);
