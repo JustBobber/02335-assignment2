@@ -100,6 +100,11 @@ int aq_recv(AlarmQueue aq, void **msg) {
         *msg = current->msg;
         if (current->next != NULL && previous != NULL) previous->next = current->next;
 
+        // if there is only one message in the queue
+        if (current->next == NULL) {
+            queue->head = NULL;
+        }
+
         queue->size--;
         pthread_cond_signal(&(queue->has_alarm_condition));
         if (queue->size == 0) pthread_cond_signal(&(queue->has_content_condition));
