@@ -12,7 +12,7 @@
 
 #define SEND_SUCCESS 0
 
-typedef struct {
+typedef struct QueueMessage {
     void *msg;
     int kind;
     struct QueueMessage *next;
@@ -63,7 +63,7 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
         // ... otherwise find the tail and append the new message
         QueueMessage *current = queue->head;
         while (current->next != NULL) {
-            current = current->next;
+            current = (QueueMessage*) current->next;
         }
         current->next = new_msg;
     }
@@ -93,7 +93,7 @@ int aq_recv(AlarmQueue aq, void **msg) {
         QueueMessage *current = queue->head;
         while (current->next != NULL && current->kind != AQ_ALARM) {
             previous = current;
-            current = current->next;
+            current = (QueueMessage*) current->next;
         }
 
         // store alarm (which is current) in result pointer and fix linked list if necessary
@@ -113,7 +113,7 @@ int aq_recv(AlarmQueue aq, void **msg) {
         QueueMessage *recv_msg = queue->head; // the received msg that is to be freed after.
         if (queue->head->next != NULL) {
             // if there is another message in the normal message queue, move that to be the head of the queue
-            QueueMessage *next = queue->head->next;
+            QueueMessage *next = (QueueMessage*) queue->head->next;
             queue->head = next;
         } else {
             queue->head = NULL; // ... otherwise remove the last message
@@ -154,7 +154,7 @@ int aq_alarms(AlarmQueue aq) {
         if (current->kind == AQ_ALARM) {
             alarms++;
         }
-        current = current->next;
+        current = (QueueMessage*) current->next;
     }
     if (current->kind == AQ_ALARM) alarms++;
     

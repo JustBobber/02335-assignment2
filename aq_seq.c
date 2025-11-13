@@ -10,7 +10,7 @@
 #include "aq.h"
 #include "stdlib.h"
 
-typedef struct {
+typedef struct QueueMessage {
     void *msg;
     int kind;
     struct QueueMessage *next;
@@ -45,7 +45,7 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
     } else {
         QueueMessage *current = queue->head;
         while (current->next != NULL) {
-            current = current->next;
+            current = (QueueMessage*) current->next;
         }
         current->next = new_msg;
         new_msg->msg = msg; // add msg to queue
@@ -75,7 +75,7 @@ int aq_recv(AlarmQueue aq, void * *msg) {
         QueueMessage *prev = NULL;
         while (current->next != NULL && current->kind != AQ_ALARM) {
             prev = current;
-            current = current->next;
+            current = (QueueMessage*) current->next;
         }
         if (current->next != NULL && prev != NULL) {
             prev->next = current->next;
@@ -89,7 +89,7 @@ int aq_recv(AlarmQueue aq, void * *msg) {
     if (queue->head != NULL) {
         *msg = queue->head->msg;
         if (queue->head->next != NULL) {
-            QueueMessage *next = queue->head->next;
+            QueueMessage *next = (QueueMessage*) queue->head->next;
             free(queue->head);
             queue->head = next;
         } else {
@@ -126,7 +126,7 @@ int aq_alarms(AlarmQueue aq) {
         alarms++;
     }
     while (current->next != NULL) {
-        current = current->next;
+        current = (QueueMessage*) current->next;
         if (current->kind == AQ_ALARM) {
             alarms++;
         }
