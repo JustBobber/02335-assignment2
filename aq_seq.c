@@ -121,15 +121,16 @@ int aq_alarms(AlarmQueue aq) {
     if (current == NULL) {
         return 0;
     }
-    int has_alarm = 0;
+    int alarms = 0;
+    if (current->kind == AQ_ALARM) {
+        alarms++;
+    }
     while (current->next != NULL) {
         current = current->next;
         if (current->kind == AQ_ALARM) {
-            has_alarm++;
+            alarms++;
         }
     }
 
-    
-
-    return has_alarm;
+    return alarms;
 }
