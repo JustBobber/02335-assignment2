@@ -14,26 +14,25 @@
 
 typedef struct {
     void *msg;
-    int msg_kind;
-    void *next;
+    int kind;
+    struct QueueMessage *next;
 } QueueMessage;
 
 typedef struct {
-    void *alarm;
-    QueueMessage *queue_msg;
+    QueueMessage *head;
+    int size;
     pthread_mutex_t lock;
-    // send condition is broadcasted when a message is sent, recv condition is broadcasted when a message is consumed
-    pthread_cond_t sendCondition, recvCondition;
+    pthread_cond_t has_content_condition, has_alarm_condition;
 } Queue;
 
 AlarmQueue aq_create() {
-    Queue *q = (Queue*) malloc(sizeof(Queue));
-    q->alarm = NULL;
-    q->queue_msg = NULL;
-    pthread_mutex_init(&(q->lock), 0);
-    pthread_cond_init(&(q->sendCondition), 0);
-    pthread_cond_init(&(q->recvCondition), 0);
-    return q;
+    Queue *queue = (Queue*) malloc(sizeof(Queue));
+    queue->head = NULL;
+    queue->size = 0;
+    pthread_mutex_init(&(queue->lock), 0);
+    pthread_cond_init(&(queue->has_content_condition), 0);
+    pthread_cond_init(&(queue->has_alarm_condition), 0);
+    return queue;
 }
 
 int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
@@ -42,51 +41,41 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 
     if (msg == NULL) return AQ_NULL_MSG;
 
+    // if unknown message kind, return err code
+    if (k != 0 && k != 1) return AQ_NOT_IMPL;
+
     pthread_mutex_lock(&(queue->lock)); // aquire lock no matter the message kind
 
-    // alarm message
-    if (k == AQ_ALARM) {
-        // while an alarm already exists, we wait until a recvCondition tells us that a new
-        // message has been received. Then, we check again if an alarm already exists.
-        while (queue->alarm != NULL) {
-            pthread_cond_wait(&(queue->recvCondition), &(queue->lock));
-        }
-        queue->alarm = msg; // set alarm in queue
-        pthread_cond_broadcast(&(queue->sendCondition)); // signal every thread waiting for sendCondition that a message has been sent
-        pthread_mutex_unlock(&(queue->lock)); // release mutex
-        return SEND_SUCCESS;
+    while (aq_alarms(queue) > 0) {
+        pthread_cond_wait(&(queue->has_alarm_condition), &(queue->lock));
     }
 
-    // normal message
-    if (k == AQ_NORMAL) {
-        // initialize new message
-        QueueMessage *new_msg = malloc(sizeof(QueueMessage));
-        new_msg->next = NULL;
-        new_msg->msg = msg;
+    // initialize new message
+    QueueMessage *new_msg = malloc(sizeof(QueueMessage));
+    new_msg->next = NULL;
+    new_msg->msg = msg;
+    new_msg->kind = k;
 
-        if (queue->queue_msg == NULL) {
-            // if message list head is null, set the new message as the head
-            queue->queue_msg = new_msg;
-        } else {
-            // ... otherwise find the tail and append the new message
-            QueueMessage *current = queue->queue_msg;
-            while (current->next != NULL) {
-                current = current->next;
-            }
-            current->next = new_msg;
+    if (queue->head == NULL) {
+        // if queue head is null, set the new message as the head
+        queue->head = new_msg;
+    } else {
+        // ... otherwise find the tail and append the new message
+        QueueMessage *current = queue->head;
+        while (current->next != NULL) {
+            current = current->next;
         }
-
-        pthread_cond_broadcast(&(queue->sendCondition)); // signal every thread waiting for sendCondition that a message has been sent
-        pthread_mutex_unlock(&(queue->lock)); // release mutex
-        return SEND_SUCCESS;
+        current->next = new_msg;
     }
 
-    // unknown message kind, release and return err code
-    pthread_mutex_unlock(&(queue->lock));
-    return AQ_NOT_IMPL;
+    queue->size++;
+    if (k == AQ_ALARM) pthread_cond_signal(&(queue->has_alarm_condition)); // signal queue has alarm
+    pthread_cond_signal(&(queue->has_content_condition)); // signal queue has content
+    pthread_mutex_unlock(&(queue->lock)); // release mutex
+    return SEND_SUCCESS;
 }
 
-int aq_recv(AlarmQueue aq, void * *msg) {
+int aq_recv(AlarmQueue aq, void **msg) {
     if (aq == NULL) return AQ_UNINIT;
     Queue *queue = (Queue*) aq;
     
@@ -94,32 +83,44 @@ int aq_recv(AlarmQueue aq, void * *msg) {
 
     pthread_mutex_lock(&(queue->lock));
 
-    while (queue->alarm == NULL && queue->queue_msg == NULL) {
-        pthread_cond_wait(&(queue->sendCondition), &(queue->lock));
+    while (queue->size == 0) {
+        pthread_cond_wait(&(queue->has_content_condition), &(queue->lock));
     }
     
     // if there is alarm
-    if (queue->alarm != NULL) {
-        *msg = queue->alarm; // store alarm in result pointer
-        queue->alarm = NULL;
-        pthread_cond_broadcast(&(queue->recvCondition)); // signal every thread waiting for recvCondition that a message has been consumed
+    if (aq_alarms(queue) > 0) {
+        QueueMessage *previous = NULL;
+        QueueMessage *current = queue->head;
+        while (current->next != NULL && current->kind != AQ_ALARM) {
+            previous = current;
+            current = current->next;
+        }
+
+        // store alarm (which is current) in result pointer and fix linked list if necessary
+        *msg = current;
+        if (current->next != NULL && previous != NULL) previous->next = current->next;
+
+        queue->size--;
+        pthread_cond_signal(&(queue->has_alarm_condition));
+        if (queue->size == 0) pthread_cond_signal(&(queue->has_content_condition));
         pthread_mutex_unlock(&(queue->lock));
         return AQ_ALARM;
     }
     
     // if there is a normal message
-    if (queue->queue_msg != NULL) {
-        *msg = queue->queue_msg->msg; // store normal message queue head in result pointer
-        QueueMessage *recv_msg = queue->queue_msg; // the received msg that is to be freed after.
-        if (queue->queue_msg->next != NULL) {
+    if (queue->head != NULL) {
+        *msg = queue->head->msg; // store normal message queue head in result pointer
+        QueueMessage *recv_msg = queue->head; // the received msg that is to be freed after.
+        if (queue->head->next != NULL) {
             // if there is another message in the normal message queue, move that to be the head of the queue
-            QueueMessage *next = queue->queue_msg->next;
-            queue->queue_msg = next;
+            QueueMessage *next = queue->head->next;
+            queue->head = next;
         } else {
-            queue->queue_msg = NULL; // ... otherwise remove the last message
+            queue->head = NULL; // ... otherwise remove the last message
         }
+        queue->size--;
         free(recv_msg); // freeing the received message
-        pthread_cond_broadcast(&(queue->recvCondition)); // signal every thread waiting for recvCondition that a message has been consumed
+        if (queue->size == 0) pthread_cond_signal(&(queue->has_content_condition));
         pthread_mutex_unlock(&(queue->lock));
         return AQ_NORMAL;
     }
@@ -134,37 +135,30 @@ int aq_size(AlarmQueue aq) {
         return AQ_UNINIT;
     }
     Queue *queue = (Queue*) aq;
-
-    pthread_mutex_lock(&(queue->lock));
-
-    int size = 0;
-
-    if (queue->alarm != NULL) {
-        size ++;
-    }
-
-    QueueMessage *current = queue->queue_msg;
-    if (current == NULL) {
-        pthread_mutex_unlock(&(queue->lock));
-        return size; // + aq_alarms(queue);
-    }
-    do {
-        size++;
-        current = current->next;
-    } while (current != NULL);
-
-    pthread_mutex_unlock(&(queue->lock));
-    return size; // + aq_alarms(queue);
+    return queue->size;
 }
 
 int aq_alarms(AlarmQueue aq) {
     if (aq == NULL) {
         return AQ_UNINIT;
     }
-
     Queue *queue = (Queue*) aq;
+    
     pthread_mutex_lock(&(queue->lock));
-    int alarm = queue->alarm != NULL ? 1 : 0;
+    
+    if (queue->head == NULL) return 0;
+
+    int alarms = 0;
+    QueueMessage *current = queue->head;
+    while (current->next != NULL) {
+        if (current->kind == AQ_ALARM) {
+            alarms++;
+        }
+        current = current->next;
+    }
+    if (current->kind == AQ_ALARM) alarms++;
+    
     pthread_mutex_unlock(&(queue->lock));
-    return alarm;
+    
+    return alarms;
 }
