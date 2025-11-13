@@ -24,7 +24,7 @@ void *normal_producer(void *arg) {
 }
 
 void *consumer(void *arg) {
-    msleep(500);
+    msleep(50);
     get(q);
     get(q);
     get(q);
