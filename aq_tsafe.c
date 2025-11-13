@@ -45,20 +45,25 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
     if (k != 0 && k != 1) return AQ_NOT_IMPL;
 
     pthread_mutex_lock(&(queue->lock)); // aquire lock no matter the message kind
-
-    while (aq_alarms(queue) > 0) {
-        pthread_cond_wait(&(queue->has_alarm_condition), &(queue->lock));
-    }
-
+    
     // initialize new message
     QueueMessage *new_msg = malloc(sizeof(QueueMessage));
     new_msg->next = NULL;
     new_msg->msg = msg;
     new_msg->kind = k;
-
+    
+    while (k == AQ_ALARM && queue->head->kind == AQ_ALARM) {
+        pthread_cond_wait(&(queue->has_alarm_condition), &(queue->lock));
+    }
     if (queue->head == NULL) {
         // if queue head is null, set the new message as the head
         queue->head = new_msg;
+    } 
+    // Put the alarm front of queue
+    else if (k == AQ_ALARM) {
+        QueueMessage *temp = queue->head;
+        queue->head = new_msg;
+        queue->head->next = temp;
     } else {
         // ... otherwise find the tail and append the new message
         QueueMessage *current = queue->head;
@@ -67,7 +72,7 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
         }
         current->next = new_msg;
     }
-
+    
     queue->size++;
     if (k == AQ_ALARM) pthread_cond_signal(&(queue->has_alarm_condition)); // signal queue has alarm
     pthread_cond_signal(&(queue->has_content_condition)); // signal queue has content
