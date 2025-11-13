@@ -11,13 +11,14 @@
 #include "stdlib.h"
 
 typedef struct {
-    void *val;
-    void *next;
+    void *msg;
+    int msg_kind;
+    struct QueueMessage *next;
 } QueueMessage;
 
 typedef struct {
-    void *alarm;
-    QueueMessage *q_msg;
+    QueueMessage *queue_head;
+    int size;
 } Queue;
 
 AlarmQueue aq_create() {
@@ -31,31 +32,24 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 
     Queue* queue = aq;
 
-    // alarm message
-    if (k == AQ_ALARM) {
-        if (queue->alarm != NULL) {
-            return AQ_NO_ROOM;
+    QueueMessage *new_msg = malloc(sizeof(QueueMessage));
+    if (queue->queue_head == NULL) {
+        queue->queue_head = new_msg;
+        new_msg->msg = msg; // add msg to queue
+        new_msg->msg_kind = k; // set type of msg
+        queue->size++; // update size
+    } else {
+        QueueMessage *current = queue->queue_head;
+        while (current->next != NULL) {
+            current = current->next;
         }
-        queue->alarm = msg;
-        return 0;
+        current->next = new_msg;
+        new_msg->msg = msg; // add msg to queue
+        new_msg->msg_kind = k; // set type of msg
+        queue->size++; // update size
     }
-
-    // normal message
-    if (k == AQ_NORMAL) {
-        QueueMessage *new_msg = malloc(sizeof(QueueMessage));
-        if (queue->q_msg == NULL) {
-            queue->q_msg = new_msg;
-            new_msg->val = msg; // add msg to queue
-        } else {
-            QueueMessage *current = queue->q_msg;
-            while (current->next != NULL) {
-                current = current->next;
-            }
-            current->next = new_msg;
-            new_msg->val = msg; // add msg to queue
-        }
-        return 0;
-    }
+    return 0;
+    
 
     // unknown message kind
     return AQ_NOT_IMPL;
@@ -73,21 +67,26 @@ int aq_recv(AlarmQueue aq, void * *msg) {
 
     // if there is alarm
     if (aq_alarms(queue) == 1) {
-        *msg = queue->alarm;
-        queue->alarm = NULL;
+        QueueMessage *current = queue->queue_head;
+        while (current->next != NULL && current->msg_kind != AQ_ALARM) {
+            current = current->next;
+        }
+        *msg = current->msg;
+        queue->size--;
         return AQ_ALARM;
     }
 
-    if (queue->q_msg != NULL) {
-        *msg = queue->q_msg->val;
-        if (queue->q_msg->next != NULL) {
-            QueueMessage *next = queue->q_msg->next;
-            free(queue->q_msg);
-            queue->q_msg = next;
+    if (queue->queue_head != NULL) {
+        *msg = queue->queue_head->msg;
+        if (queue->queue_head->next != NULL) {
+            QueueMessage *next = queue->queue_head->next;
+            free(queue->queue_head);
+            queue->queue_head = next;
         } else {
-            free(queue->q_msg);
-            queue->q_msg = NULL; // For removing last element of queue
+            free(queue->queue_head);
+            queue->queue_head = NULL; // For removing last element of queue
         }
+        queue->size--;
         return AQ_NORMAL;
     }
 
@@ -99,17 +98,7 @@ int aq_size(AlarmQueue aq) {
         return AQ_UNINIT;
     }
     Queue *queue = aq;
-    int size = 0;
-    
-    QueueMessage *current = queue->q_msg;
-    if (current == NULL) {
-        return size + aq_alarms(queue);
-    }
-    do {
-        size++;
-        current = current->next;
-    } while (current != NULL);
-    return size + aq_alarms(queue);
+    return queue->size;
 }
 
 int aq_alarms(AlarmQueue aq) {
@@ -117,5 +106,16 @@ int aq_alarms(AlarmQueue aq) {
         return AQ_UNINIT;
     }
     Queue *queue = aq;
-    return queue->alarm != NULL ? 1 : 0;
+
+    QueueMessage *current = queue->queue_head;
+    int has_alarm = 0;
+    while (current->next != NULL && current->msg_kind != AQ_ALARM) {
+        current = current->next;
+    }
+
+    if (current->msg_kind == AQ_ALARM) {
+        has_alarm = 1;
+    }
+
+    return has_alarm;
 }
