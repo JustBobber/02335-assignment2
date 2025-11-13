@@ -114,7 +114,7 @@ int aq_recv(AlarmQueue aq, void **msg) {
 
     queue->size--;
     free(received_queue_msg);
-    if (received_queue_msg->kind == AQ_ALARM) pthread_cond_signal(&(queue->has_alarm_condition));
+    if (received_kind == AQ_ALARM) pthread_cond_signal(&(queue->has_alarm_condition));
     if (queue->size == 0) pthread_cond_signal(&(queue->has_content_condition));
     pthread_mutex_unlock(&(queue->lock));
     return received_kind;
