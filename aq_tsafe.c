@@ -14,19 +14,20 @@
 
 typedef struct {
     void *msg;
+    int msg_kind;
     void *next;
-} NormalQueueMessage;
+} QueueMessage;
 
 typedef struct {
     void *alarm;
-    NormalQueueMessage *queue_msg;
+    QueueMessage *queue_msg;
     pthread_mutex_t lock;
     // send condition is broadcasted when a message is sent, recv condition is broadcasted when a message is consumed
     pthread_cond_t sendCondition, recvCondition;
 } Queue;
 
 AlarmQueue aq_create() {
-    Queue *q = malloc(sizeof(Queue));
+    Queue *q = (Queue*) malloc(sizeof(Queue));
     q->alarm = NULL;
     q->queue_msg = NULL;
     pthread_mutex_init(&(q->lock), 0);
@@ -37,9 +38,10 @@ AlarmQueue aq_create() {
 
 int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
     if (aq == NULL) return AQ_UNINIT;
+    Queue* queue = (Queue*) aq;
+
     if (msg == NULL) return AQ_NULL_MSG;
 
-    Queue* queue = aq;
     pthread_mutex_lock(&(queue->lock)); // aquire lock no matter the message kind
 
     // alarm message
@@ -58,7 +60,7 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
     // normal message
     if (k == AQ_NORMAL) {
         // initialize new message
-        NormalQueueMessage *new_msg = malloc(sizeof(NormalQueueMessage));
+        QueueMessage *new_msg = malloc(sizeof(QueueMessage));
         new_msg->next = NULL;
         new_msg->msg = msg;
 
@@ -67,7 +69,7 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
             queue->queue_msg = new_msg;
         } else {
             // ... otherwise find the tail and append the new message
-            NormalQueueMessage *current = queue->queue_msg;
+            QueueMessage *current = queue->queue_msg;
             while (current->next != NULL) {
                 current = current->next;
             }
@@ -86,9 +88,9 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 
 int aq_recv(AlarmQueue aq, void * *msg) {
     if (aq == NULL) return AQ_UNINIT;
+    Queue *queue = (Queue*) aq;
+    
     if (msg == NULL) return AQ_NULL_MSG;
-
-    Queue *queue = aq;
 
     pthread_mutex_lock(&(queue->lock));
 
@@ -108,10 +110,10 @@ int aq_recv(AlarmQueue aq, void * *msg) {
     // if there is a normal message
     if (queue->queue_msg != NULL) {
         *msg = queue->queue_msg->msg; // store normal message queue head in result pointer
-        NormalQueueMessage *recv_msg = queue->queue_msg; // the received msg that is to be freed after.
+        QueueMessage *recv_msg = queue->queue_msg; // the received msg that is to be freed after.
         if (queue->queue_msg->next != NULL) {
             // if there is another message in the normal message queue, move that to be the head of the queue
-            NormalQueueMessage *next = queue->queue_msg->next;
+            QueueMessage *next = queue->queue_msg->next;
             queue->queue_msg = next;
         } else {
             queue->queue_msg = NULL; // ... otherwise remove the last message
@@ -131,7 +133,7 @@ int aq_size(AlarmQueue aq) {
     if (aq == NULL) {
         return AQ_UNINIT;
     }
-    Queue *queue = aq;
+    Queue *queue = (Queue*) aq;
 
     pthread_mutex_lock(&(queue->lock));
 
@@ -141,7 +143,7 @@ int aq_size(AlarmQueue aq) {
         size ++;
     }
 
-    NormalQueueMessage *current = queue->queue_msg;
+    QueueMessage *current = queue->queue_msg;
     if (current == NULL) {
         pthread_mutex_unlock(&(queue->lock));
         return size; // + aq_alarms(queue);
@@ -160,7 +162,7 @@ int aq_alarms(AlarmQueue aq) {
         return AQ_UNINIT;
     }
 
-    Queue *queue = aq;
+    Queue *queue = (Queue*) aq;
     pthread_mutex_lock(&(queue->lock));
     int alarm = queue->alarm != NULL ? 1 : 0;
     pthread_mutex_unlock(&(queue->lock));

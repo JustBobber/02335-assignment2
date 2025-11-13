@@ -13,11 +13,11 @@
 typedef struct {
     void *val;
     void *next;
-} NormalQueueMessage;
+} QueueMessage;
 
 typedef struct {
     void *alarm;
-    NormalQueueMessage *q_msg;
+    QueueMessage *q_msg;
 } Queue;
 
 AlarmQueue aq_create() {
@@ -42,12 +42,12 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 
     // normal message
     if (k == AQ_NORMAL) {
-        NormalQueueMessage *new_msg = malloc(sizeof(NormalQueueMessage));
+        QueueMessage *new_msg = malloc(sizeof(QueueMessage));
         if (queue->q_msg == NULL) {
             queue->q_msg = new_msg;
             new_msg->val = msg; // add msg to queue
         } else {
-            NormalQueueMessage *current = queue->q_msg;
+            QueueMessage *current = queue->q_msg;
             while (current->next != NULL) {
                 current = current->next;
             }
@@ -81,7 +81,7 @@ int aq_recv(AlarmQueue aq, void * *msg) {
     if (queue->q_msg != NULL) {
         *msg = queue->q_msg->val;
         if (queue->q_msg->next != NULL) {
-            NormalQueueMessage *next = queue->q_msg->next;
+            QueueMessage *next = queue->q_msg->next;
             free(queue->q_msg);
             queue->q_msg = next;
         } else {
@@ -101,7 +101,7 @@ int aq_size(AlarmQueue aq) {
     Queue *queue = aq;
     int size = 0;
     
-    NormalQueueMessage *current = queue->q_msg;
+    QueueMessage *current = queue->q_msg;
     if (current == NULL) {
         return size + aq_alarms(queue);
     }
