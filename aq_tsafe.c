@@ -27,6 +27,8 @@ typedef struct {
 
 AlarmQueue aq_create() {
     Queue *q = malloc(sizeof(Queue));
+    q->alarm = NULL;
+    q->queue_msg = NULL;
     pthread_mutex_init(&(q->lock), 0);
     pthread_cond_init(&(q->sendCondition), 0);
     pthread_cond_init(&(q->recvCondition), 0);
