@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <unistd.h>
 #include <pthread.h>
 
 #include "aq.h"
@@ -11,19 +10,15 @@
 static AlarmQueue q;
 
 void *producer(void *arg) {
-    put_alarm(q, 1);
+    put_normal(q, 1);
     put_normal(q, 2);
     put_normal(q, 3);
     put_normal(q, 4);
-
-    return 0;
-}
-
-void *producer2(void *arg) {
-    put_alarm(q, 10);
-    put_normal(q, 20);
-    put_normal(q, 30);
-    
+    msleep(50);
+    put_normal(q, 5);
+    put_normal(q, 6);
+    put_normal(q, 7);
+    put_alarm(q, 8);
 
     return 0;
 }
@@ -33,11 +28,7 @@ void *consumer(void *arg) {
     get(q);
     get(q);
     get(q);
-
-    return 0;
-}
-
-void *consumer2(void *arg) {
+    get(q);
     get(q);
     get(q);
     get(q);
@@ -56,31 +47,23 @@ int main(int argc, char **argv) {
     }
 
     pthread_t t1;
-    pthread_t t1_2;
     pthread_t t2;
-    pthread_t t2_2;
 
     void *res1;
-    void *res1_2;
     void *res2;
-    void *res2_2;
 
     printf("----------------\n");
 
     /* Fork threads */
     pthread_create(&t1, NULL, producer, NULL);
-    pthread_create(&t1_2, NULL, producer2, NULL);
     pthread_create(&t2, NULL, consumer, NULL);
-    pthread_create(&t2_2, NULL, consumer2, NULL);
 
     /* Join with all threads */
     pthread_join(t1, &res1);
-    pthread_join(t1_2, &res1_2);
     pthread_join(t2, &res2);
-    pthread_join(t2_2, &res2_2);
 
     printf("----------------\n");
-    printf("Threads terminated with %ld, %ld, %ld, %ld\n", (uintptr_t) res1, (uintptr_t) res1_2, (uintptr_t) res2, (uintptr_t) res2_2);
+    printf("Threads terminated with %ld, %ld\n", (uintptr_t) res1, (uintptr_t) res2);
 
     print_sizes(q);
 
