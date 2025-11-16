@@ -14,7 +14,7 @@
 
 typedef struct QueueMessage {
     void *msg;
-    int kind;
+    MsgKind kind;
     struct QueueMessage *next;
 } QueueMessage;
 
@@ -116,7 +116,7 @@ int aq_recv(AlarmQueue aq, void **msg) {
         pthread_cond_wait(&(queue->has_content), &(queue->lock));
     }
 
-    int kind = queue->head->kind;
+    MsgKind kind = queue->head->kind;
     *msg = queue->head->msg;
 
     // updating queue
