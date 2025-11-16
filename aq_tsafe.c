@@ -6,7 +6,6 @@
  */
 
 #include <pthread.h>
-#include <string.h>
 #include "aq.h"
 #include "stdlib.h"
 
@@ -25,6 +24,7 @@ typedef struct {
     pthread_mutex_t lock;
     pthread_cond_t has_content, has_alarm;
 } Queue;
+
 
 AlarmQueue aq_create() {
     Queue *queue = (Queue*) malloc(sizeof(Queue));
@@ -54,7 +54,6 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
     Queue* queue = (Queue*) aq;
 
     pthread_mutex_lock(&(queue->lock)); // acquire lock no matter the message kind
-
 
     // if k is alarm then wait till there is no alarms in the queue.
     if (k == AQ_ALARM) {
@@ -128,7 +127,7 @@ int aq_recv(AlarmQueue aq, void **msg) {
 
     // setting the signals.
     if (kind == AQ_ALARM) {
-        pthread_cond_broadcast(&(queue->has_alarm));
+        pthread_cond_signal(&(queue->has_alarm));
     }
 
     pthread_mutex_unlock(&(queue->lock));
