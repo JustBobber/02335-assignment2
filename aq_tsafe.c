@@ -183,21 +183,11 @@ int aq_alarms(AlarmQueue aq) {
         return AQ_UNINIT;
     }
     Queue *queue = (Queue*) aq;
-
     pthread_mutex_lock(&(queue->lock));
-
-    if (queue->head == NULL) return 0;
-
-    int alarms = 0;
-    QueueMessage *current = queue->head;
-    while (current->next != NULL) {
-        if (current->kind == AQ_ALARM) {
-            alarms++;
-        }
-        current = (QueueMessage*) current->next;
+    if (queue->head == NULL) {
+        return 0;
     }
-    if (current->kind == AQ_ALARM) alarms++;
-
+    MsgKind alarms = queue->head->kind == AQ_ALARM ? 1 : 0;
     pthread_mutex_unlock(&(queue->lock));
 
     return alarms;
