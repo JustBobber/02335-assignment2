@@ -145,6 +145,7 @@ int aq_alarms(AlarmQueue aq) {
     Queue *queue = (Queue*) aq;
     pthread_mutex_lock(&(queue->lock));
     if (queue->head == NULL) {
+        pthread_mutex_unlock(&(queue->lock));
         return 0;
     }
     MsgKind alarms = queue->head->kind == AQ_ALARM ? 1 : 0;
