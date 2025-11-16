@@ -126,46 +126,6 @@ int aq_recv(AlarmQueue aq, void **msg) {
         pthread_cond_signal(&(queue->has_content));
     }
 
-    /*
-    // if there is alarm
-    if (aq_alarms(queue) > 0) {
-        QueueMessage *previous = NULL;
-        QueueMessage *current = queue->head;
-        while (current->next != NULL && current->kind != AQ_ALARM) {
-            previous = current;
-            current = (QueueMessage*) current->next;
-        }
-
-        // store alarm (which is current) in result pointer and fix linked list if necessary
-        *msg = current;
-        if (current->next != NULL && previous != NULL) previous->next = current->next;
-
-        queue->size--;
-        pthread_cond_signal(&(queue->has_alarm));
-        if (queue->size == 0) pthread_cond_signal(&(queue->has_content));
-        pthread_mutex_unlock(&(queue->lock));
-        return AQ_ALARM;
-    }
-
-    // if there is a normal message
-    if (queue->head != NULL) {
-        *msg = queue->head->msg; // store normal message queue head in result pointer
-        QueueMessage *recv_msg = queue->head; // the received msg that is to be freed after.
-        if (queue->head->next != NULL) {
-            // if there is another message in the normal message queue, move that to be the head of the queue
-            QueueMessage *next = (QueueMessage*) queue->head->next;
-            queue->head = next;
-        } else {
-            queue->head = NULL; // ... otherwise remove the last message
-        }
-        queue->size--;
-        free(recv_msg); // freeing the received message
-        if (queue->size == 0) pthread_cond_signal(&(queue->has_content));
-        pthread_mutex_unlock(&(queue->lock));
-        return AQ_NORMAL;
-    }
-    */
-
     pthread_mutex_unlock(&(queue->lock));
     return kind;
 }
