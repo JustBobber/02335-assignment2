@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "aux.h"
 
 void *send_alarm(void *arg) {
     AlarmQueue *q = (AlarmQueue *)arg;
@@ -25,6 +26,7 @@ void *receive_message(void *arg) {
     AlarmQueue *q = (AlarmQueue *)arg;
     void *msg;
     for (int i = 0; i < 3; i++) {
+        msleep(300);
         printf("Receiving message...\n");
         int message_type = aq_recv(q, &msg);
         if (message_type == AQ_ALARM) {
