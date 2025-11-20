@@ -20,7 +20,6 @@ typedef struct QueueMessage {
 typedef struct {
     QueueMessage *head;
     int size;
-    int waiting_alarms;
     pthread_mutex_t lock;
     pthread_cond_t has_content, has_no_alarm;
 } Queue;
@@ -30,7 +29,6 @@ AlarmQueue aq_create() {
     Queue *queue = (Queue*) malloc(sizeof(Queue));
     queue->head = NULL;
     queue->size = 0;
-    queue->waiting_alarms = 0;
     pthread_mutex_init(&(queue->lock), 0);
     pthread_cond_init(&(queue->has_content), 0);
     pthread_cond_init(&(queue->has_no_alarm), 0);
@@ -57,17 +55,10 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 
     // if k is alarm then wait till there is no alarms in the queue.
     if (k == AQ_ALARM) {
-        queue->waiting_alarms++;
         while (queue->head != NULL && queue->head->kind == AQ_ALARM) {
             pthread_cond_wait(&(queue->has_no_alarm), &(queue->lock));
         }
-        queue->waiting_alarms--;
-    } else {
-        // normal messages must wait till there is no alarms waiting to be send.
-        while (queue->waiting_alarms > 0) {
-            pthread_cond_wait(&(queue->has_no_alarm), &(queue->lock));
-        }
-    }
+    } 
 
     // initialize new message
     QueueMessage *new_msg = malloc(sizeof(QueueMessage));
