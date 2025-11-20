@@ -138,6 +138,7 @@ int aq_recv(AlarmQueue aq, void **msg) {
         pthread_cond_signal(&(queue->has_alarm));
 >>>>>>> Stashed changes
     }
+<<<<<<< Updated upstream
     
     queue->size--;
     int kind = message_to_free->kind;
@@ -145,6 +146,35 @@ int aq_recv(AlarmQueue aq, void **msg) {
 
     pthread_mutex_unlock(&(queue->lock));
     return kind;
+=======
+
+    // this guard clause shouldn't ever run since the above cond_wait call should wait for there to be something in the queue
+    // we'll leave this just for safety
+    if (queue->head == NULL) {
+        pthread_mutex_unlock(&(queue->lock));
+        return AQ_NO_MSG;
+    }
+
+    *msg = queue->head->msg; // copy head to result
+    QueueMessage *received_queue_msg = queue->head; // the received queue message that should be freed after
+    MsgKind received_kind = received_queue_msg->kind;
+
+    if (queue->head->next != NULL)  {
+        // there is another message in the queue, move this to be the new queue head
+        QueueMessage *new_head = (QueueMessage*) queue->head->next;
+        queue->head = new_head;
+    } else {
+        // no more messages, set head to null
+        queue->head = NULL;
+    }
+
+    queue->size--;
+    free(received_queue_msg);
+    if (received_queue_msg->kind == AQ_ALARM) pthread_cond_signal(&(queue->has_alarm_condition));
+    if (queue->size == 0) pthread_cond_signal(&(queue->has_content_condition));
+    pthread_mutex_unlock(&(queue->lock));
+    return received_kind;
+>>>>>>> Stashed changes
 }
 
 int aq_size(AlarmQueue aq) {
@@ -160,6 +190,7 @@ int aq_alarms(AlarmQueue aq) {
         return AQ_UNINIT;
     }
     Queue *queue = (Queue*) aq;
+<<<<<<< Updated upstream
     pthread_mutex_lock(&(queue->lock));
     if (queue->head == NULL) {
         pthread_mutex_unlock(&(queue->lock));
@@ -169,4 +200,8 @@ int aq_alarms(AlarmQueue aq) {
     pthread_mutex_unlock(&(queue->lock));
 
     return alarms;
+=======
+    if (queue->head == NULL) return 0;
+    return queue->head->kind == AQ_ALARM ? 1 : 0;
+>>>>>>> Stashed changes
 }
