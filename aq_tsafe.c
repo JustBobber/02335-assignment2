@@ -22,7 +22,7 @@ typedef struct {
     int size;
     int alarm_count;
     pthread_mutex_t lock;
-    pthread_cond_t has_content, has_alarm;
+    pthread_cond_t has_content, has_no_alarm;
 } Queue;
 
 
@@ -33,7 +33,7 @@ AlarmQueue aq_create() {
     queue->alarm_count = 0;
     pthread_mutex_init(&(queue->lock), 0);
     pthread_cond_init(&(queue->has_content), 0);
-    pthread_cond_init(&(queue->has_alarm), 0);
+    pthread_cond_init(&(queue->has_no_alarm), 0);
     return queue;
 }
 
@@ -63,7 +63,7 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 
     // if kind is alarm, wait
     while (k == AQ_ALARM && queue->alarm_count > 0) {
-        pthread_cond_wait(&(queue->has_alarm), &(queue->lock));
+        pthread_cond_wait(&(queue->has_no_alarm), &(queue->lock));
     }
 
     // insert message into queue
@@ -116,7 +116,7 @@ int aq_recv(AlarmQueue aq, void **msg) {
     if (message_to_free->kind == AQ_ALARM) {
         // received is alarm, decrement alarm count and signal alarm
         queue->alarm_count--;
-        pthread_cond_signal(&(queue->has_alarm));
+        pthread_cond_signal(&(queue->has_no_alarm));
     }
     
     // decrement size no matter what
