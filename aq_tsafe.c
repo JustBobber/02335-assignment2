@@ -22,7 +22,7 @@ typedef struct {
     int size;
     int waiting_alarms;
     pthread_mutex_t lock;
-    pthread_cond_t has_content, has_alarm;
+    pthread_cond_t has_content, has_no_alarm;
 } Queue;
 
 
@@ -33,7 +33,7 @@ AlarmQueue aq_create() {
     queue->waiting_alarms = 0;
     pthread_mutex_init(&(queue->lock), 0);
     pthread_cond_init(&(queue->has_content), 0);
-    pthread_cond_init(&(queue->has_alarm), 0);
+    pthread_cond_init(&(queue->has_no_alarm), 0);
     return queue;
 }
 
@@ -59,13 +59,13 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
     if (k == AQ_ALARM) {
         queue->waiting_alarms++;
         while (queue->head != NULL && queue->head->kind == AQ_ALARM) {
-            pthread_cond_wait(&(queue->has_alarm), &(queue->lock));
+            pthread_cond_wait(&(queue->has_no_alarm), &(queue->lock));
         }
         queue->waiting_alarms--;
     } else {
         // normal messages must wait till there is no alarms waiting to be send.
         while (queue->waiting_alarms > 0) {
-            pthread_cond_wait(&(queue->has_alarm), &(queue->lock));
+            pthread_cond_wait(&(queue->has_no_alarm), &(queue->lock));
         }
     }
 
@@ -127,7 +127,7 @@ int aq_recv(AlarmQueue aq, void **msg) {
 
     // setting the signals.
     if (kind == AQ_ALARM) {
-        pthread_cond_signal(&(queue->has_alarm));
+        pthread_cond_signal(&(queue->has_no_alarm));
     }
 
     pthread_mutex_unlock(&(queue->lock));
