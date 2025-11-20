@@ -20,12 +20,9 @@ typedef struct QueueMessage {
 typedef struct {
     QueueMessage *head;
     int size;
-<<<<<<< Updated upstream
-=======
     int alarm_count;
->>>>>>> Stashed changes
     pthread_mutex_t lock;
-    pthread_cond_t has_content, has_no_alarm;
+    pthread_cond_t has_content, has_alarm;
 } Queue;
 
 
@@ -33,13 +30,10 @@ AlarmQueue aq_create() {
     Queue *queue = (Queue*) malloc(sizeof(Queue));
     queue->head = NULL;
     queue->size = 0;
-<<<<<<< Updated upstream
-=======
     queue->alarm_count = 0;
->>>>>>> Stashed changes
     pthread_mutex_init(&(queue->lock), 0);
     pthread_cond_init(&(queue->has_content), 0);
-    pthread_cond_init(&(queue->has_no_alarm), 0);
+    pthread_cond_init(&(queue->has_alarm), 0);
     return queue;
 }
 
@@ -59,18 +53,6 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
     
     Queue* queue = (Queue*) aq;
 
-<<<<<<< Updated upstream
-    pthread_mutex_lock(&(queue->lock)); // acquire lock no matter the message kind
-
-    // if k is alarm then wait till there is no alarms in the queue.
-    if (k == AQ_ALARM) {
-        while (queue->head != NULL && queue->head->kind == AQ_ALARM) {
-            pthread_cond_wait(&(queue->has_no_alarm), &(queue->lock));
-        }
-    } 
-
-=======
->>>>>>> Stashed changes
     // initialize new message
     QueueMessage *new_msg = malloc(sizeof(QueueMessage));
     new_msg->next = NULL;
@@ -79,20 +61,22 @@ int aq_send(AlarmQueue aq, void *msg, MsgKind k) {
 
     pthread_mutex_lock(&(queue->lock)); // acquire lock no matter the message kind
 
+    // if kind is alarm, wait
     while (k == AQ_ALARM && queue->alarm_count > 0) {
         pthread_cond_wait(&(queue->has_alarm), &(queue->lock));
     }
 
-    // place the new message correctly in the queue
+    // insert message into queue
     if (queue->head == NULL) {
+        // if the queue is empty, insert at head
         queue->head = new_msg;
     } else if (new_msg->kind == AQ_ALARM) {
-        // alarms are inserted at head
+        // if the queue is not empty and the incoming kind is alarm, insert at heat and shift down
         new_msg->next = queue->head;
         queue->head = new_msg;
         queue->alarm_count++;
     } else {
-        // ... otherwise find the tail and append the new message
+        // if the queue is not empty and the incoming kind is normal, insert at tail
         QueueMessage *current = queue->head;
         while (current->next != NULL) {
             current = (QueueMessage*) current->next;
@@ -120,61 +104,28 @@ int aq_recv(AlarmQueue aq, void **msg) {
     pthread_mutex_lock(&(queue->lock));
 
     while (queue->size == 0) {
+        // queue is empty, wait
         pthread_cond_wait(&(queue->has_content), &(queue->lock));
     }
 
-    // updating queue
+    // store result in result pointer and update queue head
     QueueMessage *message_to_free = queue->head;
     *msg = message_to_free->msg;
     queue->head = queue->head->next;
 
-    // setting the signals.
-<<<<<<< Updated upstream
-    if (kind == AQ_ALARM) {
-        pthread_cond_signal(&(queue->has_no_alarm));
-=======
     if (message_to_free->kind == AQ_ALARM) {
+        // received is alarm, decrement alarm count and signal alarm
         queue->alarm_count--;
         pthread_cond_signal(&(queue->has_alarm));
->>>>>>> Stashed changes
     }
-<<<<<<< Updated upstream
     
+    // decrement size no matter what
     queue->size--;
     int kind = message_to_free->kind;
     free(message_to_free);
 
     pthread_mutex_unlock(&(queue->lock));
     return kind;
-=======
-
-    // this guard clause shouldn't ever run since the above cond_wait call should wait for there to be something in the queue
-    // we'll leave this just for safety
-    if (queue->head == NULL) {
-        pthread_mutex_unlock(&(queue->lock));
-        return AQ_NO_MSG;
-    }
-
-    *msg = queue->head->msg; // copy head to result
-    QueueMessage *received_queue_msg = queue->head; // the received queue message that should be freed after
-    MsgKind received_kind = received_queue_msg->kind;
-
-    if (queue->head->next != NULL)  {
-        // there is another message in the queue, move this to be the new queue head
-        QueueMessage *new_head = (QueueMessage*) queue->head->next;
-        queue->head = new_head;
-    } else {
-        // no more messages, set head to null
-        queue->head = NULL;
-    }
-
-    queue->size--;
-    free(received_queue_msg);
-    if (received_queue_msg->kind == AQ_ALARM) pthread_cond_signal(&(queue->has_alarm_condition));
-    if (queue->size == 0) pthread_cond_signal(&(queue->has_content_condition));
-    pthread_mutex_unlock(&(queue->lock));
-    return received_kind;
->>>>>>> Stashed changes
 }
 
 int aq_size(AlarmQueue aq) {
@@ -190,7 +141,6 @@ int aq_alarms(AlarmQueue aq) {
         return AQ_UNINIT;
     }
     Queue *queue = (Queue*) aq;
-<<<<<<< Updated upstream
     pthread_mutex_lock(&(queue->lock));
     if (queue->head == NULL) {
         pthread_mutex_unlock(&(queue->lock));
@@ -200,8 +150,4 @@ int aq_alarms(AlarmQueue aq) {
     pthread_mutex_unlock(&(queue->lock));
 
     return alarms;
-=======
-    if (queue->head == NULL) return 0;
-    return queue->head->kind == AQ_ALARM ? 1 : 0;
->>>>>>> Stashed changes
 }
