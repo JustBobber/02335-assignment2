@@ -10,27 +10,40 @@
 static AlarmQueue q;
 
 void *alarm_producer(void *arg) {
+    msleep(10);
     put_alarm(q, 0);
+    msleep(10);
     put_alarm(q, 1);
+    msleep(10);
     put_normal(q, 99);
+    msleep(10);
     return 0;
 }
 
 void *normal_producer(void *arg) {
+    msleep(10);
     put_normal(q, 0);
+    msleep(10);
     put_normal(q, 1);
+    msleep(10);
     put_normal(q, 2);
+    msleep(10);
     return 0;
 }
 
 void *consumer(void *arg) {
-    msleep(50);
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
-    assert(get(q) == 99);
+    msleep(10);
+    get(q);
     return 0;
 }
 

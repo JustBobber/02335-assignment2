@@ -24,14 +24,23 @@ void *producer(void *arg) {
 }
 
 void *consumer(void *arg) {
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
+    msleep(10);
     get(q);
+    msleep(10);
     
     return 0;
 }
